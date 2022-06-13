@@ -4,24 +4,22 @@ import (
 	"clisynth/keyboard"
 	"clisynth/osc"
 	"clisynth/speaker"
+	"clisynth/streamer"
 	"fmt"
 	"sync"
-	"time"
-
-	"github.com/faiface/beep"
 )
 
 var lock = &sync.Mutex{}
 
 type synth struct {
-	sr         beep.SampleRate
+	sr         int
 	bufferSize int
 	oscs       []osc.Osc
 }
 
 var synthInstance *synth
 
-func InitSynthInstance(sr int, bufferSize time.Duration) {
+func InitSynthInstance(sr int, bufferSize int) {
 	if synthInstance == nil {
 		lock.Lock()
 		defer lock.Unlock()
@@ -37,9 +35,9 @@ func InitSynthInstance(sr int, bufferSize time.Duration) {
 		return
 	}
 
-	synthInstance.sr = beep.SampleRate(sr)
-	synthInstance.bufferSize = synthInstance.sr.N(bufferSize)
-	synthInstance.oscs = []osc.Osc{osc.NewOsc(beep.SampleRate(sr), 0, "sine", 400, 0)}
+	synthInstance.sr = sr
+	synthInstance.bufferSize = bufferSize
+	synthInstance.oscs = []osc.Osc{osc.NewOsc(sr, 0, "sine", 200, 0)}
 	speaker.Init(synthInstance.sr, synthInstance.bufferSize)
 	Play()
 }
@@ -52,7 +50,7 @@ func Mute() {
 func Play() {
 	streamers := getStreamers()
 	speaker.Clear()
-	speaker.Play(len(synthInstance.oscs), streamers[:]...)
+	speaker.Play(streamers[:]...)
 }
 
 func StartKBSession(centerNote float64) {
@@ -60,7 +58,7 @@ func StartKBSession(centerNote float64) {
 	for !k.ExitSig {
 		select {
 		case pressedKeys := <-k.PressedKeys:
-			var streamers []beep.Streamer = nil
+			var streamers []streamer.Streamer = nil
 			for _, osc := range synthInstance.oscs {
 				for _, freq := range pressedKeys {
 					if freq != 0 {
@@ -69,15 +67,15 @@ func StartKBSession(centerNote float64) {
 				}
 			}
 			speaker.Clear()
-			speaker.Play(len(synthInstance.oscs), streamers[:]...)
+			speaker.Play(streamers[:]...)
 		default:
 		}
 	}
 	Play()
 }
 
-func getStreamers() []beep.Streamer {
-	var streamers []beep.Streamer
+func getStreamers() []streamer.Streamer {
+	var streamers []streamer.Streamer
 	for _, o := range synthInstance.oscs {
 		streamers = append(streamers, o.CreateStreamer(1))
 	}

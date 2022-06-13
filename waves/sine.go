@@ -1,10 +1,9 @@
 package waves
 
 import (
+	"clisynth/streamer"
 	"errors"
 	"math"
-
-	"github.com/faiface/beep"
 )
 
 type sineGenerator struct {
@@ -15,11 +14,11 @@ type sineGenerator struct {
 // Creates a streamer which will procude an infinite sine wave with the given frequency.
 // use other wrappers of this package to change amplitude or add time limit.
 // sampleRate must be at least two times grater then frequency, otherwise this function will return an error.
-func SineTone(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
+func SineTone(sr int, freq float64) (streamer.Streamer, error) {
 	dt := freq / float64(sr)
 
 	if dt >= 1.0/2.0 {
-		return nil, errors.New("faiface sine tone generator: samplerate must be at least 2 times grater then frequency")
+		return nil, errors.New("samplerate must be at least 2 times grater then frequency")
 	}
 
 	return &sineGenerator{dt, 0}, nil

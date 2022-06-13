@@ -30,14 +30,14 @@ func (wt WaveType) String() string {
 }
 
 type Osc struct {
-	sr        beep.SampleRate
+	sr        int
 	OscId     int
 	waveType  WaveType
 	frequency float64
 	volume    float64
 }
 
-func NewOsc(sr beep.SampleRate, oscId int, waveTypeString string, frequency float64, volume float64) Osc {
+func NewOsc(sr int, oscId int, waveTypeString string, frequency float64, volume float64) Osc {
 	waveType := waveTypeMap[waveTypeString]
 
 	newOsc := Osc{

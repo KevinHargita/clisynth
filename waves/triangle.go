@@ -15,7 +15,7 @@ type triangleGenerator struct {
 // Creates a streamer which will procude an infinite triangle wave with the given frequency.
 // use other wrappers of this package to change amplitude or add time limit.
 // sampleRate must be at least two times grater then frequency, otherwise this function will return an error.
-func TriangleTone(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
+func TriangleTone(sr int, freq float64) (beep.Streamer, error) {
 	dt := freq / float64(sr)
 
 	if dt >= 1.0/2.0 {

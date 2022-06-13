@@ -3,20 +3,18 @@ package speaker
 
 import (
 	"clisynth/mixer"
+	"clisynth/streamer"
+	"math"
 	"sync"
 
-	"github.com/faiface/beep"
-	"github.com/hajimehoshi/oto"
-	"github.com/pkg/errors"
+	"github.com/hajimehoshi/oto/v2"
 )
 
 var (
 	mu      sync.Mutex
 	mix     mixer.Mixer
 	samples [][2]float64
-	buf     []byte
 	context *oto.Context
-	player  *oto.Player
 	done    chan struct{}
 )
 
@@ -25,24 +23,21 @@ var (
 // The bufferSize argument specifies the number of samples of the speaker's buffer. Bigger
 // bufferSize means lower CPU usage and more reliable playback. Lower bufferSize means better
 // responsiveness and less delay.
-func Init(sampleRate beep.SampleRate, bufferSize int) error {
+func Init(sampleRate int, bufferSize int) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	Close()
+	mix = mixer.Mixer{SampleRate: sampleRate}
 
-	mix = mixer.Mixer{OscCount: 1}
-
-	numBytes := bufferSize * 4
 	samples = make([][2]float64, bufferSize)
-	buf = make([]byte, numBytes)
 
 	var err error
-	context, err = oto.NewContext(int(sampleRate), 2, 2, numBytes)
+	var ready chan struct{}
+	context, ready, err = oto.NewContext(sampleRate, 2, 2)
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize speaker")
+		return err
 	}
-	player = context.NewPlayer()
+	<-ready
 
 	done = make(chan struct{})
 
@@ -60,22 +55,6 @@ func Init(sampleRate beep.SampleRate, bufferSize int) error {
 	return nil
 }
 
-// Close closes the playback and the driver. In most cases, there is certainly no need to call Close
-// even when the program doesn't play anymore, because in properly set systems, the default mixer
-// handles multiple concurrent processes. It's only when the default device is not a virtual but hardware
-// device, that you'll probably want to manually manage the device from your application.
-func Close() {
-	if player != nil {
-		if done != nil {
-			done <- struct{}{}
-			done = nil
-		}
-		player.Close()
-		context.Close()
-		player = nil
-	}
-}
-
 // Lock locks the speaker. While locked, speaker won't pull new data from the playing Stramers. Lock
 // if you want to modify any currently playing Streamers to avoid race conditions.
 //
@@ -90,9 +69,9 @@ func Unlock() {
 }
 
 // Play starts playing all provided Streamers through the speaker.
-func Play(oscCount int, s ...beep.Streamer) {
+func Play(s ...streamer.Streamer) {
 	mu.Lock()
-	mix.OscCount = oscCount
+	mix.UpdateChannelCount(len(s))
 	mix.Add(s...)
 	mu.Unlock()
 }
@@ -109,28 +88,30 @@ func Clear() {
 func update() {
 	mu.Lock()
 	mix.Stream(samples)
+	p := context.NewPlayer(&Speaker{samples: &samples})
+	p.Play()
+
 	mu.Unlock()
-
-	for i := range samples {
-		for c := range samples[i] {
-			val := samples[i][c]
-			if val < -1 {
-				val = -1
-			}
-			if val > +1 {
-				val = +1
-			}
-			valInt16 := int16(val * (1<<15 - 1))
-			low := byte(valInt16)
-			high := byte(valInt16 >> 8)
-
-			buf[i*4+c*2+0] = low
-			buf[i*4+c*2+1] = high
-		}
-	}
-	player.Write(buf)
 }
 
-func UpdateOscCount(oscCount int) {
-	mix.OscCount = oscCount
+type Speaker struct {
+	samples *[][2]float64
+}
+
+func (s *Speaker) Read(buf []byte) (int, error) {
+	newsamples := *s.samples
+	for i := 0; i < len(*s.samples); i++ {
+		const max = 32767
+		b1 := int16(math.Sin(2*math.Pi*newsamples[i][0]) * max)
+		b2 := int16(math.Sin(2*math.Pi*newsamples[i][1]) * max)
+
+		buf[4*i] = byte(b1)
+		buf[4*i+1] = byte(b1 >> 8)
+
+		buf[4*i+2] = byte(b2)
+		buf[4*i+3] = byte(b2 >> 8)
+
+	}
+
+	return len(newsamples), nil
 }

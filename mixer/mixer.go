@@ -1,17 +1,16 @@
 package mixer
 
 import (
-	"github.com/faiface/beep"
+	"clisynth/streamer"
 )
 
 // Mixer allows for dynamic mixing of arbitrary number of Streamers. Mixer automatically removes
 // drained Streamers. Mixer's stream never drains, when empty, Mixer streams silence.
 
-const channelCount int = 4
-
 type Mixer struct {
-	OscCount  int
-	streamers []beep.Streamer
+	streamers    []streamer.Streamer
+	SampleRate   int
+	channelCount int
 }
 
 // Len returns the number of Streamers currently playing in the Mixer.
@@ -20,7 +19,7 @@ func (m *Mixer) Len() int {
 }
 
 // Add adds Streamers to the Mixer.
-func (m *Mixer) Add(s ...beep.Streamer) {
+func (m *Mixer) Add(s ...streamer.Streamer) {
 	m.streamers = append(m.streamers, s...)
 }
 
@@ -34,7 +33,7 @@ func (m *Mixer) Clear() {
 func (m *Mixer) Stream(samples [][2]float64) (n int, ok bool) {
 	var tmp [512][2]float64
 
-	levelRatio := 0.75 / float64(channelCount*m.OscCount)
+	levelRatio := 0.75 / float64(m.channelCount)
 
 	for len(samples) > 0 {
 		toStream := len(tmp)
@@ -78,4 +77,8 @@ func (m *Mixer) Stream(samples [][2]float64) (n int, ok bool) {
 // you should handle the errors right where they can happen.
 func (m *Mixer) Err() error {
 	return nil
+}
+
+func (m *Mixer) UpdateChannelCount(n int) {
+	m.channelCount = n
 }

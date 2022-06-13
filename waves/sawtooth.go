@@ -17,7 +17,7 @@ type sawGenerator struct {
 // Creates a streamer which will procude an infinite sawtooth wave with the given frequency.
 // use other wrappers of this package to change amplitude or add time limit.
 // sampleRate must be at least two times grater then frequency, otherwise this function will return an error.
-func SawtoothTone(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
+func SawtoothTone(sr int, freq float64) (beep.Streamer, error) {
 	dt := freq / float64(sr)
 
 	if dt >= 1.0/2.0 {
@@ -31,7 +31,7 @@ func SawtoothTone(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
 // sawtooth is reversed so the slope is negative.
 // use other wrappers of this package to change amplitude or add time limit.
 // sampleRate must be at least two times grater then frequency, otherwise this function will return an error.
-func SawtoothToneReversed(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
+func SawtoothToneReversed(sr int, freq float64) (beep.Streamer, error) {
 	dt := freq / float64(sr)
 
 	if dt >= 1.0/2.0 {
